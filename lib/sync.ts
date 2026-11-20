@@ -8,6 +8,12 @@ import type { AppleTrack } from "./types";
 /** Au-delà, on s'arrête et on laisse le prochain passage du cron continuer (le cache garde la progression). */
 const TIME_BUDGET_MS = 45_000;
 const CONCURRENCY = 4;
+/**
+ * À incrémenter quand la logique de correspondance change (et changer K.map en même temps) :
+ * la synchro suivante recalcule alors tous les titres, sans action manuelle.
+ * v2 : priorité aux albums/singles de l'artiste plutôt qu'aux compilations.
+ */
+const MATCHER_VERSION = 2;
 
 import type { SyncResult } from "./describe";
 export type { SyncResult };
@@ -56,8 +62,14 @@ async function doSync(force: boolean): Promise<SyncResult> {
   const state = await getState();
   const snapshot = await getSnapshot(playlistId);
 
-  // Rien n'a changé côté Apple, et personne n'a touché la playlist Spotify → rien à faire.
-  if (!force && state.appleHash === appleHash && state.spotifySnapshot === snapshot) {
+  // Rien n'a changé côté Apple, personne n'a touché la playlist Spotify et l'algorithme
+  // de correspondance est le même → rien à faire.
+  if (
+    !force &&
+    state.appleHash === appleHash &&
+    state.spotifySnapshot === snapshot &&
+    state.matcherVersion === MATCHER_VERSION
+  ) {
     return { status: "unchanged", tracks: tracks.length };
   }
 
@@ -105,6 +117,7 @@ async function doSync(force: boolean): Promise<SyncResult> {
   const newSnapshot = await replacePlaylist(playlistId, uris);
   await patchState({
     appleHash,
+    matcherVersion: MATCHER_VERSION,
     spotifySnapshot: newSnapshot,
     lastSync: new Date().toISOString(),
     trackCount: tracks.length,

@@ -14,4 +14,7 @@ export interface SpotifyCandidate {
   artists: string[];
   durationMs: number;
   isrc?: string;
+  /** "album" | "single" | "compilation" : type de l'album Spotify qui contient le titre. */
+  albumType?: string;
+  albumArtists?: string[];
 }

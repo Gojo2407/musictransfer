@@ -24,11 +24,42 @@ export function textQuery(t: AppleTrack): string {
   return `track:"${title}" artist:"${mainArtist(t.artist).replace(/"/g, "")}"`;
 }
 
+const VARIOUS = new Set(["various artists", "artistes divers", "verschiedene interpreten", "varios artistas", "artisti vari", "various"]);
+
+function sameArtist(a: string, b: string): boolean {
+  const na = normalize(a);
+  const nb = normalize(b);
+  return !!na && !!nb && (na === nb || na.includes(nb) || nb.includes(na));
+}
+
+/**
+ * Vrai si le titre vient d'un album ou single de l'artiste lui-même (sa page artiste),
+ * faux pour une compilation ou un album d'un autre artiste (B.O., « Various Artists »…).
+ * Si Spotify ne fournit pas l'info, on considère que oui.
+ */
+export function fromArtist(t: AppleTrack, c: SpotifyCandidate): boolean {
+  if (c.albumType === "compilation") return false;
+  const albumArtists = c.albumArtists ?? [];
+  if (albumArtists.length === 0) return true;
+  if (albumArtists.some((a) => VARIOUS.has(normalize(a)))) return false;
+  const main = mainArtist(t.artist);
+  return albumArtists.some((a) => sameArtist(a, main));
+}
+
+/** Pénalité appliquée aux compilations : un album de l'artiste gagne même sans ISRC identique. */
+const COMPILATION_PENALTY = 40;
+
 /**
  * Score d'un candidat (plus haut = meilleur, < 0 = rejeté).
- * Exige un titre et un artiste compatibles ; la durée départage.
+ * Exige un titre et un artiste compatibles ; la durée départage ;
+ * les compilations passent après les albums et singles de l'artiste.
  */
 export function score(t: AppleTrack, c: SpotifyCandidate): number {
+  const s = baseScore(t, c);
+  return s < 0 || fromArtist(t, c) ? s : s - COMPILATION_PENALTY;
+}
+
+function baseScore(t: AppleTrack, c: SpotifyCandidate): number {
   if (t.isrc && c.isrc && t.isrc.toUpperCase() === c.isrc.toUpperCase()) return 100;
   const nt = normalize(t.title);
   const nc = normalize(c.name);

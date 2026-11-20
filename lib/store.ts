@@ -10,13 +10,17 @@ export const K = {
   access: "mt:spotify:access",
   playlist: "mt:spotify:playlist",
   state: "mt:state",
-  map: "mt:map", // hash appleId -> spotify uri
+  // hash appleId -> spotify uri. Le suffixe change avec MATCHER_VERSION (lib/sync.ts) :
+  // un nouvel algorithme de correspondance repart d'un cache vide.
+  map: "mt:map:v2",
   lock: "mt:lock",
   oauthState: "mt:oauth-state",
 };
 
 export interface SyncState {
   appleHash?: string;
+  /** Version de l'algorithme de correspondance utilisée pour la dernière synchro complète. */
+  matcherVersion?: number;
   spotifySnapshot?: string;
   lastCheck?: string;
   lastSync?: string;

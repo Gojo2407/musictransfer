@@ -1,6 +1,6 @@
 import { env } from "./env";
 import { K, redis } from "./store";
-import { pickBest, textQuery } from "./match";
+import { fromArtist, pickBest, textQuery } from "./match";
 import type { AppleTrack, SpotifyCandidate } from "./types";
 
 const API = "https://api.spotify.com/v1";
@@ -85,6 +85,7 @@ interface SpTrack {
   duration_ms: number;
   artists: { name: string }[];
   external_ids?: { isrc?: string };
+  album?: { album_type?: string; artists?: { name: string }[] };
 }
 
 const toCandidate = (t: SpTrack): SpotifyCandidate => ({
@@ -93,6 +94,8 @@ const toCandidate = (t: SpTrack): SpotifyCandidate => ({
   artists: t.artists.map((a) => a.name),
   durationMs: t.duration_ms,
   isrc: t.external_ids?.isrc,
+  albumType: t.album?.album_type,
+  albumArtists: t.album?.artists?.map((a) => a.name),
 });
 
 async function search(q: string, limit: number): Promise<SpotifyCandidate[]> {
@@ -103,18 +106,31 @@ async function search(q: string, limit: number): Promise<SpotifyCandidate[]> {
   return r.tracks.items.filter(Boolean).map(toCandidate);
 }
 
-/** Trouve l'équivalent Spotify d'un titre Apple : d'abord par ISRC, sinon titre + artiste. */
+/**
+ * Trouve l'équivalent Spotify d'un titre Apple.
+ * Priorité aux versions publiées par l'artiste lui-même (album ou single) ;
+ * une compilation n'est retenue qu'en dernier recours.
+ */
 export async function findTrack(t: AppleTrack): Promise<string | null> {
-  if (t.isrc) {
-    const byIsrc = await search(`isrc:${t.isrc}`, 5);
-    if (byIsrc.length) return (pickBest(t, byIsrc) ?? byIsrc[0]).uri;
+  const pool: SpotifyCandidate[] = [];
+  if (t.isrc) pool.push(...(await search(`isrc:${t.isrc}`, 10)));
+
+  // Aucun résultat ISRC sur un album de l'artiste : on cherche aussi par titre + artiste.
+  if (!pool.some((c) => fromArtist(t, c))) {
+    pool.push(...(await search(textQuery(t), 10)));
   }
-  const byText = await search(textQuery(t), 10);
-  const best = pickBest(t, byText);
-  if (best) return best.uri;
+  const best = pickBest(t, pool);
+  if (best && fromArtist(t, best)) return best.uri;
+
   // Dernier essai, recherche libre (utile si le titre contient des caractères spéciaux)
   const loose = await search(`${t.title} ${t.artist}`, 10);
-  return pickBest(t, loose)?.uri ?? null;
+  pool.push(...loose);
+  const finalBest = pickBest(t, pool);
+  if (finalBest) return finalBest.uri;
+
+  // Résultats ISRC que le score n'a pas su départager (champs manquants) : on prend le plus « artiste ».
+  const isrcHits = pool.filter((c) => t.isrc && c.isrc?.toUpperCase() === t.isrc.toUpperCase());
+  return (isrcHits.find((c) => fromArtist(t, c)) ?? isrcHits[0])?.uri ?? null;
 }
 
 export function parsePlaylistId(input: string): string {
