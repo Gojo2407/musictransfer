@@ -96,7 +96,9 @@ const toCandidate = (t: SpTrack): SpotifyCandidate => ({
 });
 
 async function search(q: string, limit: number): Promise<SpotifyCandidate[]> {
-  const p = new URLSearchParams({ q, type: "track", limit: String(limit), market: "from_token" });
+  // Pas de `market` : avec un jeton utilisateur, Spotify applique déjà le pays du compte,
+  // et `market=from_token` est soupçonné de provoquer un 403 « Insufficient client scope ».
+  const p = new URLSearchParams({ q, type: "track", limit: String(limit) });
   const r = await api<{ tracks: { items: SpTrack[] } }>(`/search?${p}`);
   return r.tracks.items.filter(Boolean).map(toCandidate);
 }
