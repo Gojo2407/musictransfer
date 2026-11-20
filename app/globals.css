@@ -555,6 +555,15 @@ a.album-spotify:hover {
 }
 
 /* ---------- Connexion (mot de passe) ---------- */
+.login-error {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--ko);
+  background: var(--ko-soft);
+  font-weight: 600;
+  font-size: 14px;
+}
 .login label {
   display: block;
   font-weight: 600;

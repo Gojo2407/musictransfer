@@ -14,7 +14,11 @@ jobs:
         env:
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        # Seul le code HTTP est affiché : les logs sont publics si le dépôt l'est.
+        # Le détail de chaque synchro est visible dans le tableau de bord.
         run: |
-          curl --fail-with-body -sS -X POST "$SITE_URL/api/sync" \
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$SITE_URL/api/sync" \
             -H "Authorization: Bearer $CRON_SECRET" \
-            --max-time 90
+            --max-time 90)
+          echo "HTTP $code"
+          test "$code" = "200"

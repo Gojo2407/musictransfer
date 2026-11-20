@@ -99,14 +99,26 @@ function NoteArt() {
   );
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ msg?: string }> }) {
-  const { msg } = await searchParams;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ msg?: string; login?: string }>;
+}) {
+  const { msg, login } = await searchParams;
 
   if (!(await isLoggedIn())) {
+    // Messages fixes : le paramètre d'URL n'est jamais affiché tel quel avant connexion.
+    const loginError =
+      login === "locked"
+        ? "Trop d'essais. Réessaie dans 15 minutes."
+        : login === "failed"
+          ? "Mot de passe incorrect."
+          : null;
     return (
       <main className="narrow">
         <Header />
         <form className="card login" method="post" action="/api/login">
+          {loginError && <p className="login-error">{loginError}</p>}
           <label htmlFor="password">Mot de passe</label>
           <div className="row">
             <input id="password" type="password" name="password" required autoFocus />
