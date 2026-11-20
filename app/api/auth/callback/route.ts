@@ -14,7 +14,13 @@ export async function GET(req: Request) {
     home.searchParams.set("msg", `Connexion Spotify refusée ou invalide (${url.searchParams.get("error") ?? "state"})`);
     return NextResponse.redirect(home);
   }
-  await exchangeCode(code);
+  try {
+    await exchangeCode(code);
+  } catch (e) {
+    console.error("Échec de l'échange du code Spotify :", e);
+    home.searchParams.set("msg", `Erreur connexion Spotify : ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.redirect(home);
+  }
   home.searchParams.set("msg", "Spotify connecté ✔");
   const res = NextResponse.redirect(home);
   res.cookies.delete("mt_oauth");
