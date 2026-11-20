@@ -31,7 +31,8 @@ async function getWebToken(): Promise<string> {
   scripts.sort((a, b) => Number(/index/.test(b)) - Number(/index/.test(a)));
   for (const src of scripts) {
     const js = await (await fetch(ORIGIN + src, { headers: { "User-Agent": UA } })).text();
-    const tok = js.match(/eyJh[\w-]+\.[\w-]+\.[\w-]+/);
+    // JWT : l'en-tête commence par « eyJ » (selon l'ordre des clés : eyJhbGci… ou eyJ0eXAi…)
+    const tok = js.match(/eyJ[\w-]{10,}\.[\w-]{20,}\.[\w-]{20,}/);
     if (tok) {
       cachedToken = { value: tok[0], at: Date.now() };
       return tok[0];
