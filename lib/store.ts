@@ -22,6 +22,8 @@ export interface SyncState {
   lastSync?: string;
   lastResult?: string;
   lastError?: string;
+  /** Dernière lecture de la playlist Apple : complète (true) ou en échec / partielle (false). */
+  appleOk?: boolean;
   trackCount?: number;
   matchedCount?: number;
   notFound?: { title: string; artist: string }[];

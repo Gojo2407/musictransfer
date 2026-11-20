@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isCron, isLoggedIn } from "@/lib/auth";
+import { describeResult } from "@/lib/describe";
 import { runSync } from "@/lib/sync";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const result = await runSync({ force });
     if (cron) return NextResponse.json(result);
     const home = new URL("/", req.url);
-    home.searchParams.set("msg", `Synchro : ${JSON.stringify(result)}`);
+    home.searchParams.set("msg", describeResult(result).text);
     return NextResponse.redirect(home, 303);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

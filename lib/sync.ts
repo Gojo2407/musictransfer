@@ -9,11 +9,8 @@ import type { AppleTrack } from "./types";
 const TIME_BUDGET_MS = 45_000;
 const CONCURRENCY = 4;
 
-export type SyncResult =
-  | { status: "unchanged"; tracks: number }
-  | { status: "synced"; tracks: number; matched: number; notFound: number }
-  | { status: "partial"; resolved: number; remaining: number }
-  | { status: "skipped"; reason: string };
+import type { SyncResult } from "./describe";
+export type { SyncResult };
 
 export async function runSync({ force = false } = {}): Promise<SyncResult> {
   const r = redis();
@@ -36,7 +33,16 @@ export async function runSync({ force = false } = {}): Promise<SyncResult> {
 
 async function doSync(force: boolean): Promise<SyncResult> {
   const started = Date.now();
-  const { tracks, complete, source } = await getApplePlaylist(env("APPLE_PLAYLIST_URL"));
+  let apple: Awaited<ReturnType<typeof getApplePlaylist>>;
+  try {
+    apple = await getApplePlaylist(env("APPLE_PLAYLIST_URL"));
+  } catch (e) {
+    await patchState({ appleOk: false });
+    throw e;
+  }
+  const { tracks, complete, source } = apple;
+  // Sert au tableau de bord : l'encadré Apple Music est vert si la playlist a été lue entièrement.
+  await patchState({ appleOk: complete });
 
   if (!complete) {
     return { status: "skipped", reason: `Lecture Apple incomplète (source ${source}) : rien n'est modifié côté Spotify.` };
